@@ -12,6 +12,32 @@
 #include <printf.h>
 #include <abort.h>
 
+static void init_downpages(void)
+{
+    word_t i;
+    paddr_t start_paddr = (paddr_t)_text & ~MASK(ARM_2MB_BLOCK_BITS);
+    paddr_t end_paddr = (paddr_t)_end;
+
+    _boot_pgd_down[0] = ((uintptr_t)_boot_pud_down) | BIT(1) | BIT(0); /* its a page table */
+
+    /* We only map in 1 GiB, so check that the loader doesn't cross 1GiB boundary. */
+    if (GET_PUD_INDEX(start_paddr) != GET_PUD_INDEX(end_paddr)) {
+        printf("We only map 1GiB, but elfloader paddr range covers multiple GiB.\n");
+        abort();
+    }
+
+    _boot_pud_down[GET_PUD_INDEX(start_paddr)] = ((uintptr_t)_boot_pmd_down) | BIT(1) | BIT(0);
+
+    for (i = GET_PMD_INDEX(start_paddr); i <= GET_PMD_INDEX(end_paddr); i++) {
+        _boot_pmd_down[i] = start_paddr
+                            | BIT(10)  /* access flag */
+                            | BIT(7)   /* access permission RO */
+                            | (4 << 2) /* MT_NORMAL memory */
+                            | BIT(0);  /* 2M block */
+        start_paddr += BIT(ARM_2MB_BLOCK_BITS);
+    }
+}
+
 /*
 * Create a "boot" page table, which contains a 1:1 mapping below
 * the kernel's first vaddr, and a virtual-to-physical mapping above the
@@ -20,19 +46,11 @@
 void init_boot_vspace(struct image_info *kernel_info)
 {
     word_t i;
-
     vaddr_t first_vaddr = kernel_info->virt_region_start;
     vaddr_t last_vaddr = kernel_info->virt_region_end;
     paddr_t first_paddr = kernel_info->phys_region_start;
 
-    _boot_pgd_down[0] = ((uintptr_t)_boot_pud_down) | BIT(1) | BIT(0); /* its a page table */
-
-    for (i = 0; i < BIT(PUD_BITS); i++) {
-        _boot_pud_down[i] = (i << ARM_1GB_BLOCK_BITS)
-                            | BIT(10) /* access flag */
-                            | (0 << 2) /* strongly ordered memory */
-                            | BIT(0); /* 1G block */
-    }
+    init_downpages();
 
     _boot_pgd_up[GET_PGD_INDEX(first_vaddr)]
         = ((uintptr_t)_boot_pud_up) | BIT(1) | BIT(0); /* its a page table */
@@ -45,6 +63,7 @@ void init_boot_vspace(struct image_info *kernel_info)
         printf("We only map 1GiB, but kernel vaddr range covers multiple GiB.\n");
         abort();
     }
+
     for (i = GET_PMD_INDEX(first_vaddr); i < BIT(PMD_BITS); i++) {
         _boot_pmd_up[i] = first_paddr
                           | BIT(10) /* access flag */
@@ -63,14 +82,8 @@ void init_hyp_boot_vspace(struct image_info *kernel_info)
     word_t pmd_index;
     vaddr_t first_vaddr = kernel_info->virt_region_start;
     paddr_t first_paddr = kernel_info->phys_region_start;
-    _boot_pgd_down[0] = ((uintptr_t)_boot_pud_down) | BIT(1) | BIT(0);
 
-    for (i = 0; i < BIT(PUD_BITS); i++) {
-        _boot_pud_down[i] = (i << ARM_1GB_BLOCK_BITS)
-                            | BIT(10) /* access flag */
-                            | (0 << 2) /* strongly ordered memory */
-                            | BIT(0); /* 1G block */
-    }
+    init_downpages();
 
     _boot_pgd_down[GET_PGD_INDEX(first_vaddr)]
         = ((uintptr_t)_boot_pud_up) | BIT(1) | BIT(0); /* its a page table */

@@ -208,17 +208,13 @@ void continue_boot(int was_relocated)
     smp_boot();
 #endif /* CONFIG_MAX_NUM_NODES */
 
+    printf("Enabling MMU and jumping to kernel-image entry point...\n\n");
+
     if (is_hyp_mode()) {
-        printf("Enabling hypervisor MMU and paging\n");
+        printf("hypervisor mode\n");
         arm_enable_hyp_mmu();
     } else {
-        printf("Enabling MMU and paging\n");
         arm_enable_mmu();
-    }
-
-    /* Enter kernel. The UART may no longer be accessible here. */
-    if ((uintptr_t)uart_get_mmio() < kernel_info.virt_region_start) {
-        printf("Jumping to kernel-image entry point...\n\n");
     }
 
     ((init_arm_kernel_t)kernel_info.virt_entry)(user_info.phys_region_start,
@@ -229,6 +225,5 @@ void continue_boot(int was_relocated)
                                                 dtb_size);
 
     /* We should never get here. */
-    printf("ERROR: Kernel returned back to the ELF Loader\n");
     abort();
 }
