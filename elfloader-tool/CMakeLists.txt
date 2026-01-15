@@ -64,6 +64,13 @@ config_option(
     DEFAULT_DISABLED OFF
 )
 
+config_option(
+    ElfloaderRestrictedPAMap RESTRICTED_PA_MAP
+    "Restrict physical address mappings in the ELF loader"
+    DEFAULT OFF
+    DEFAULT_DISABLED OFF
+    )
+
 config_choice(
     ElfloaderHashInstructions
     HASH_INSTRUCTIONS
