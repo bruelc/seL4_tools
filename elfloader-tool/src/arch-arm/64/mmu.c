@@ -15,7 +15,7 @@
 static void init_downpages(void)
 {
     word_t i;
-    paddr_t start_paddr = (paddr_t)_text & ~((1 << ARM_2MB_BLOCK_BITS) - 1);
+    paddr_t start_paddr = (paddr_t)_text & ~MASK(ARM_2MB_BLOCK_BITS);
     paddr_t end_paddr = (paddr_t)_end;
 
     _boot_pgd_down[0] = ((uintptr_t)_boot_pud_down) | BIT(1) | BIT(0); /* its a page table */

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: GPL-2.0-only
  */
 
-#include <elfloader/gen_config.h>
 #include <elfloader.h>
 #include <types.h>
 #include <mode/structures.h>
