@@ -12,33 +12,13 @@
 #include <printf.h>
 #include <abort.h>
 
-#ifdef CONFIG_RESTRICTED_PA_MAP
-#include "drivers/uart.h"
-#endif
-
 static void init_downpages(void)
 {
     word_t i;
-
-    for (i = 0; i < BIT(PGD_BITS); i++)
-        _boot_pgd_down[i] = 0LL;
-    for (i = 0; i < BIT(PUD_BITS); i++)
-        _boot_pud_down[i] = 0LL;
-
-    _boot_pgd_down[0] = ((uintptr_t)_boot_pud_down) | BIT(1) | BIT(0); /* its a page table */
-
-#ifdef CONFIG_RESTRICTED_PA_MAP
-    paddr_t uart_paddr = (paddr_t)uart_get_mmio();
-    paddr_t start_paddr = (paddr_t)_text & ~((1 << ARM_2MB_BLOCK_BITS) -1);
+    paddr_t start_paddr = (paddr_t)_text & ~((1 << ARM_2MB_BLOCK_BITS) - 1);
     paddr_t end_paddr = (paddr_t)_end;
 
-    for (i = 0; i < BIT(PMD_BITS); i++)
-        _boot_pmd_down[i] = 0LL;
-
-    _boot_pud_down[GET_PUD_INDEX(uart_paddr)] = uart_paddr
-      | BIT(10) /* access flag */
-      | (0 << 2) /* strongly ordered memory */
-      | BIT(0); /* 1G block */
+    _boot_pgd_down[0] = ((uintptr_t)_boot_pud_down) | BIT(1) | BIT(0); /* its a page table */
 
     /* We only map in 1 GiB, so check that the loader doesn't cross 1GiB boundary. */
     if (GET_PUD_INDEX(start_paddr) != GET_PUD_INDEX(end_paddr)) {
@@ -50,20 +30,12 @@ static void init_downpages(void)
 
     for (i = GET_PMD_INDEX(start_paddr); i <= GET_PMD_INDEX(end_paddr); i++) {
 	    _boot_pmd_down[i] = start_paddr
-                          | BIT(10) /* access flag */
-                          | (4 << 2) /* MT_NORMAL memory */
-                          | BIT(0); /* 2M block */
-        start_paddr += BIT(ARM_2MB_BLOCK_BITS);
+                                | BIT(10)  /* access flag */
+                                | BIT(7)   /* access permission RO */
+                                | (4 << 2) /* MT_NORMAL memory */
+                                | BIT(0);  /* 2M block */
+	    start_paddr += BIT(ARM_2MB_BLOCK_BITS);
     }
-
-#else
-    for (i = 0; i < BIT(PUD_BITS); i++) {
-        _boot_pud_down[i] = (i << ARM_1GB_BLOCK_BITS)
-                            | BIT(10) /* access flag */
-                            | (0 << 2) /* strongly ordered memory */
-                            | BIT(0); /* 1G block */
-    }
-#endif
 }
 
 /*
@@ -74,7 +46,6 @@ static void init_downpages(void)
 void init_boot_vspace(struct image_info *kernel_info)
 {
     word_t i;
-
     vaddr_t first_vaddr = kernel_info->virt_region_start;
     vaddr_t last_vaddr = kernel_info->virt_region_end;
     paddr_t first_paddr = kernel_info->phys_region_start;
@@ -92,6 +63,7 @@ void init_boot_vspace(struct image_info *kernel_info)
         printf("We only map 1GiB, but kernel vaddr range covers multiple GiB.\n");
         abort();
     }
+
     for (i = GET_PMD_INDEX(first_vaddr); i < BIT(PMD_BITS); i++) {
         _boot_pmd_up[i] = first_paddr
                           | BIT(10) /* access flag */

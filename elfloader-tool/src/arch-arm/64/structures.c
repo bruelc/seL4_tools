@@ -17,6 +17,4 @@ uint64_t _boot_pmd_up[BIT(PMD_BITS)] ALIGN(BIT(PMD_SIZE_BITS));
 /* Paging structures for identity mapping */
 uint64_t _boot_pgd_down[BIT(PGD_BITS)] ALIGN(BIT(PGD_SIZE_BITS));
 uint64_t _boot_pud_down[BIT(PUD_BITS)] ALIGN(BIT(PUD_SIZE_BITS));
-#ifdef CONFIG_RESTRICTED_PA_MAP
 uint64_t _boot_pmd_down[BIT(PMD_BITS)] ALIGN(BIT(PMD_SIZE_BITS));
-#endif
